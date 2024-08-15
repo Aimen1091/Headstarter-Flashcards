@@ -1,38 +1,38 @@
-import { useUser } from "@clerk/nextjs"; //for authentication
-import { useState } from "react";
-import { useSearchParams } from "next/navigation"; //to get flashcard set ID from the url
+import { useEffect, useState } from "react";
+import { useUser } from "@clerk/nextjs";
+import { collection, doc, getDocs } from "firebase/firestore";
+import { db } from "path-to-your-firebase-config";
+import { Container, Grid, Card, CardActionArea, CardContent, Typography, Box } from '@mui/material';
+import { useSearchParams } from "next/navigation";
 
 export default function Flashcard() {
   const { isLoaded, isSignedIn, user } = useUser();
   const [flashcards, setFlashcards] = useState([]);
   const [flipped, setFlipped] = useState({});
-
   const searchParams = useSearchParams();
   const search = searchParams.get("id");
 
-  //to get all flashcards in a specific set and update the flashcard state.
   useEffect(() => {
     async function getFlashcard() {
       if (!search || !user) return;
-
       const colRef = collection(doc(collection(db, "users"), user.id), search);
       const docs = await getDocs(colRef);
-      const flashcards = [];
+      const fetchedFlashcards = [];
       docs.forEach((doc) => {
-        flashcards.push({ id: doc.id, ...doc.data() });
+        fetchedFlashcards.push({ id: doc.id, ...doc.data() });
       });
-      setFlashcards(flashcards);
+      setFlashcards(fetchedFlashcards);
     }
     getFlashcard();
   }, [search, user]);
 
-  //to handle flipping the flashcards => toggles flip state of flashcard when clicked
   const handleCardClick = (id) => {
     setFlipped((prev) => ({
       ...prev,
       [id]: !prev[id],
     }));
   };
+
   return (
     <Container maxWidth="md">
       <Grid container spacing={3} sx={{ mt: 4 }}>
@@ -42,20 +42,55 @@ export default function Flashcard() {
               <CardActionArea onClick={() => handleCardClick(flashcard.id)}>
                 <CardContent>
                   <Box
-                    sx={
-                      {
-                        /* Styling for flip animation using CSS transforms and transitions */
-                      }
-                    }
+                    sx={{
+                      position: 'relative',
+                      width: '100%',
+                      height: '200px',
+                      perspective: '1000px'
+                    }}
                   >
-                    <div>
-                      <div>
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        width: '100%',
+                        height: '100%',
+                        transformStyle: 'preserve-3d',
+                        transition: 'transform 0.6s',
+                        transform: flipped[flashcard.id] ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          width: '100%',
+                          height: '100%',
+                          backfaceVisibility: 'hidden',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          bgcolor: '#fff',
+                          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                        }}
+                      >
                         <Typography variant="h5">{flashcard.front}</Typography>
-                      </div>
-                      <div>
+                      </Box>
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          width: '100%',
+                          height: '100%',
+                          backfaceVisibility: 'hidden',
+                          transform: 'rotateY(180deg)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          bgcolor: '#fff',
+                          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                        }}
+                      >
                         <Typography variant="h5">{flashcard.back}</Typography>
-                      </div>
-                    </div>
+                      </Box>
+                    </Box>
                   </Box>
                 </CardContent>
               </CardActionArea>
